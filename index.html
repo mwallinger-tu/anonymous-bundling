@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bundling Metrics</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" defer></script>
+    <script src="d3.v7.min.js"></script>
+    <script src="visuals.js"></script>
+    <link href="style.css" rel="stylesheet">
+</head>
+<body>
+    <div id="sidebar" class="d-flex flex-column p-3">
+        <button class="btn btn-primary mb-3" id="toggleSidebar">☰</button>
+        <h4 class="text-center">Dashboard</h4>
+        <ul class="nav flex-column">
+            <li class="nav-item"><a href="/dashboard/overview.html" class="nav-link text-white">Overview</a></li>
+            <li class="nav-item"><a href="/dashboard" class="nav-link text-white">Detail</a></li>
+            <!--<li class="nav-item"><a href="/dashboard/parallel.html" class="nav-link text-white">Summary</a></li>-->
+        </ul>
+
+        <h3>File</h3>
+        <div>
+            <label for="file-select">File:</label>
+
+            <select name="file-select" id="file-select">
+            </select> 
+        </div>
+
+        <h3>Settings</h3>
+        <div>
+            <input type="checkbox" id="show-nodes-check" name="scales" checked/>
+            <label for="scales">Show Nodes</label>
+        </div>
+
+        <h3>Algorithms</h3>
+        <div id="checklist-algo"></div>
+        
+        <h3>Metrics</h3>
+        <div id="checklist-metrics"></div>
+
+    </div>
+    <div id="content">
+        <div id="content-container">
+
+        </div>
+    </div>
+    
+    <script>
+        document.getElementById('toggleSidebar').addEventListener('click', function() {
+            const sidebar = document.getElementById('sidebar');
+            const content = document.getElementById('content');
+            sidebar.classList.toggle('collapsed');
+            if (sidebar.classList.contains('collapsed')) {
+                content.style.marginLeft = '60px';
+            } else {
+                content.style.marginLeft = '250px';
+            }
+        });
+
+        //const algorithms = ["S-EPB", "EPB", "WR", "FD", "CUBu"];
+        //const ALGORITHMS = ["S-EPB", "EPB", "WR", "FD"]; //, "WR", "FD", "CUBu"
+        const ALGORITHMS = ["S-EPB", "WR", "FD", "EPB", "CUBu"]; //, "WR", "FD", "CUBu"
+        //const ALGORITHMS = ["S-EPB", "WR"];
+        const METRICS = [ 
+            {'name': "Ink Ratio", "accessor": "inkratio", "type": "global"},
+            {'name': "MOA", "accessor": "mean_occupation_area", "type": "global"},
+            {'name': "EDD", "accessor": "edge_density_distribution", "type": "global"},
+            {'name': "Ambiguity", "accessor": "ambiguity_1", "type": "global"},
+            {'name': "Accuracy", "accessor": "accuracy_1", "type": "global"}, 
+            {'name': "Specificity", "accessor": "specificity_1", "type": "global"},
+            {'name': "False-Positive Rate", "accessor": "FPR_1", "type": "global"},
+            {'name': "Distortion", "accessor": "distortion", "type": "local"},
+            {'name': "Frechet", "accessor": "frechet", "type": "local"}, 
+            {'name': "Directionality Change", "accessor": "directionality", "type": "local"}, 
+            {'name': "Edge Curvature", "accessor": "directionality_mag", "type": "local"}, 
+            {'name': "Monotonicity", "accessor": "monotonicity", "type": "local"},
+            {'name': "Projected Monotonicity", "accessor": "projected_monotonicity", "type": "local"},
+            {'name': "Self-Intersections", "accessor": "self_intersections", "type": "local"},
+            {'name': "ELD", "accessor": "mean_edge_length_difference", "type": "local"} ];
+        var FILES = [ 'g0', 'g1', 'migration', 'airlines'];
+        const METRIC_SELECT = {};
+        const ALGO_SELECT = {};
+
+        const converter = {"S-EPB": 'sepb', "WR": 'wr', "FD": 'fd', "EPB": 'epb', "CUBu": 'cubu'}; 
+
+        var interface = []
+
+
+        async function initInterface(path) {
+            var content = d3.select("#content-container")
+            content.selectAll("*").remove();
+
+            ALGORITHMS.forEach(al => {               
+                var container = content.append('div').attr('class', 'algorithm-container');
+                var file = `output_dashboard/${path}/${converter[al]}.json`;
+
+                var obj = new Container(file, container, METRICS, al);
+                interface.push(obj);
+
+                obj.visibility(ALGO_SELECT[al]);
+            }); 
+
+            /*
+            interface.forEach(obj => {
+                obj.load_data().then(() => obj.draw_network())
+                .catch(error => console.error("Error:", error));
+            });
+            */
+            const runAll = (onComplete) => {
+                Promise.all(
+                  interface.map(obj =>
+                    obj.load_data()
+                      .then(() => obj.draw_network())
+                      .catch(error => {
+                        console.error("Error:", error);
+                      })
+                  )
+                ).then(() => {
+                  if (onComplete) {
+                    onComplete();
+                  }
+                });
+              };
+              
+              runAll(() => {
+                METRICS.forEach(m => {
+                    if(METRIC_SELECT[m.accessor]){
+                        var min = 1000;
+                        var max = 0;
+                        var ymax = 0;
+                        var ymin = 100000;
+    
+                        interface.forEach(i => {
+                            extent = i.metric_extent(m.accessor);
+                            min = d3.min([min, extent[0][0]]);
+                            max = d3.max([max, extent[0][1]]);
+                            ymin = d3.min([ymin, extent[1][0]]);
+                            ymax = d3.max([ymax, extent[1][1]]);
+                        });
+        
+                        interface.forEach(i => {
+                            i.metric_set_extent(m.accessor, [min,max]);
+                        });
+        
+                        interface.forEach(i => {
+                            i.metric_visibility(m.accessor, true);
+                        });
+                    }
+                });
+              });
+        }
+
+        function updateInterface(){
+
+        }
+
+        function handleCheck_algo(event) {
+            interface.forEach(i => {
+                if(i.algorithm === event.target.value)
+                    i.visibility(event.target.checked);
+            });
+
+            interface.forEach(i => {
+                i.resize();
+            });
+
+            ALGO_SELECT[event.target.value] = event.target.checked;
+        }
+
+        function handleCheck_metric(event) {
+            var min = 1000;
+            var max = 0;
+
+            var checked = event.target.checked;
+            var metric = event.target.value;
+
+            METRIC_SELECT[metric] = checked;
+
+            if (event.target.checked) {
+                interface.forEach(i => {
+                    extent = i.metric_extent(metric);
+                    min = d3.min([min, extent[0][0]]);
+                    max = d3.max([max, extent[0][1]]);
+                });
+
+                interface.forEach(i => {
+                    i.metric_set_extent(metric, [min,max]);
+                });
+            }
+
+            interface.forEach(i => {
+                i.metric_visibility(metric, checked);
+            });
+        }
+
+        function createChecklist(id, isAlgo, items) {
+            const container = document.getElementById(id);
+            const checklist = document.createElement('div');
+            checklist.innerHTML = `<ul class="list-group"></ul>`;
+            const list = checklist.querySelector('ul');
+            
+
+            var algo = ''
+            if (isAlgo){
+                var algo = 'checked';
+            
+                ALGORITHMS.forEach(al => {
+                    ALGO_SELECT[al] = true;
+                });    
+
+            } else {
+                METRICS.forEach(metric => {
+                    METRIC_SELECT[metric.accessor] = false;
+                });
+            }
+
+
+            items.forEach(item => {
+                const listItem = document.createElement('li');
+                listItem.className = "list-group-item";
+                
+                if (isAlgo) {
+                    listItem.innerHTML = `<input type="checkbox" class="checklist-item" value="${item}" ${algo}> ${item}`;
+                    listItem.querySelector('input').addEventListener('change', handleCheck_algo);
+                }
+                else
+                {
+                    listItem.innerHTML = `<input type="checkbox" class="checklist-item" value="${item.accessor}" ${algo}> ${item.name}`;
+                    listItem.querySelector('input').addEventListener('change', handleCheck_metric);
+                }
+                list.appendChild(listItem);
+            });
+            
+            container.appendChild(checklist);
+        }
+
+        document.getElementById('show-nodes-check').addEventListener('change', (input) => {
+            interface.forEach(i => {
+                i.show_nodes(input.target.checked);
+            });
+        });
+
+        window.addEventListener("load", function(){
+            d3.dsv(";", "output_dashboard/instances.csv").then(function(data) {
+                data = [...new Set(data.map(d => d.instance))]
+                console.log(data)
+    
+                FILES = data;
+    
+                FILES.forEach(f => {
+                
+                    var opt = document.createElement('option');
+                    opt.value = f;
+                    opt.innerHTML = f;
+                    
+                    document.getElementById('file-select').appendChild(opt);
+
+                    if(f === "geo_mafia") {
+                        opt.selected = true;
+                    }   
+                });
+        
+                initInterface("geo_mafia")
+            })
+
+        });
+        
+        
+        document.getElementById('file-select').addEventListener('change', (input) => {
+            initInterface(input.target.value);
+        });
+
+        createChecklist("checklist-algo",true, ALGORITHMS);
+        createChecklist("checklist-metrics", false, METRICS);
+    </script>
+</body>
+</html>
