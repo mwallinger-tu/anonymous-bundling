@@ -367,7 +367,7 @@ class Scatter{
         let yscale = d3.scaleLinear().domain(yextent).range([this.height - this.#margin.bottom, this.#margin.top]);
 
         let unqAlgs = Array.from(new Set(nodes.map(d => d.alg))).sort();
-        let cscale = d3.scaleOrdinal().domain(["sepb", "wr", "fd", "cubu_4", "epb" ]).range([ "#1f77b4", "#ff7f0e", "#2ca02c", "#9467bd", "#8c564b"]);
+        let cscale = d3.scaleOrdinal().domain(["sepb", "wr", "fd", "cubu_5", "epb" ]).range([ "#1f77b4", "#ff7f0e", "#2ca02c", "#9467bd", "#8c564b"]);
         // let thing = "directionality_mag";
         // let cscale = d3.scaleLinear().domain(d3.extent(this.nodes, d => d[thing]))
         //     .range(["red", "blue"]);
@@ -447,7 +447,7 @@ class Scatter{
     click(bundleid, parallel){
         let bundlediv = d3.select(bundleid);
         const ALGORITHMS = ["S-EPB", "WR", "FD", "EPB", "CUBu"].sort(); 
-        const converter = {"S-EPB": 'sepb', "WR": 'wr', "FD": 'fd', "EPB": 'epb', "CUBu": 'cubu_4'}; 
+        const converter = {"S-EPB": 'sepb', "WR": 'wr', "FD": 'fd', "EPB": 'epb', "CUBu": 'cubu_5'}; 
         var bundlebox = [];
 
         this.layer1.selectAll(".nodes")
@@ -540,7 +540,7 @@ class Parallel{
         let unqAlgs = [ 'EPB', 'WR', 'FD', 'CUBu','S-EPB'];
         // this.svg = svg;
 
-        var color = d3.scaleOrdinal().domain(["sepb", "wr", "fd", "cubu_4", "epb" ]).range([ "#1f77b4", "#ff7f0e", "#2ca02c", "#9467bd", "#8c564b"])
+        var color = d3.scaleOrdinal().domain(["sepb", "wr", "fd", "cubu_5", "epb" ]).range([ "#1f77b4", "#ff7f0e", "#2ca02c", "#9467bd", "#8c564b"])
 
         var y = {};
         var metrics = [];
